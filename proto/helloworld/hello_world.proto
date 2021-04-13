@@ -36,7 +36,7 @@ service Greeter {
 
 // The request message containing the user's name
 message Post {
-  int64 id = 1;
+  string id = 1;
   string title = 2;
   string text = 3;
   repeated string tags = 4;
@@ -53,12 +53,12 @@ message CreatePostRequest {
 
 message GetPostRequest {
   // The ID of the shelf resource to retrieve.
-  int64 post = 1;
+  string post = 1;
 }
 
 message EmptyRequest{}
 
 message DeletePostRequest {
   // The ID of the shelf to delete.
-  int64 post = 1;
+  string post = 1;
 }

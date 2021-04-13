@@ -81,7 +81,7 @@ func request_Greeter_GetRequest_0(ctx context.Context, marshaler runtime.Marshal
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "post")
 	}
 
-	protoReq.Post, err = runtime.Int64(val)
+	protoReq.Post, err = runtime.String(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "post", err)
 	}
@@ -107,7 +107,7 @@ func local_request_Greeter_GetRequest_0(ctx context.Context, marshaler runtime.M
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "post")
 	}
 
-	protoReq.Post, err = runtime.Int64(val)
+	protoReq.Post, err = runtime.String(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "post", err)
 	}
@@ -151,7 +151,7 @@ func request_Greeter_DeleteRequest_0(ctx context.Context, marshaler runtime.Mars
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "post")
 	}
 
-	protoReq.Post, err = runtime.Int64(val)
+	protoReq.Post, err = runtime.String(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "post", err)
 	}
@@ -177,7 +177,7 @@ func local_request_Greeter_DeleteRequest_0(ctx context.Context, marshaler runtim
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "post")
 	}
 
-	protoReq.Post, err = runtime.Int64(val)
+	protoReq.Post, err = runtime.String(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "post", err)
 	}
