@@ -9,31 +9,40 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 
+	ps "github.com/milossimic/grpc_rest/poststore"
 	helloworldpb "github.com/milossimic/grpc_rest/proto/helloworld"
 )
 
 type server struct {
 	helloworldpb.UnimplementedGreeterServer
+	store *ps.PostStore
 }
 
-func NewServer() *server {
-	return &server{}
+func NewServer() (*server, error) {
+	store, err := ps.New()
+	if err != nil {
+		return nil, err
+	}
+
+	return &server{
+		store: store,
+	}, nil
 }
 
 func (s *server) PostRequest(ctx context.Context, in *helloworldpb.CreatePostRequest) (*helloworldpb.Post, error) {
-	return &helloworldpb.Post{}, nil
+	return s.store.Post(ctx, in)
 }
 
 func (s *server) GetRequest(ctx context.Context, in *helloworldpb.GetPostRequest) (*helloworldpb.Post, error) {
-	return &helloworldpb.Post{}, nil
+	return s.store.Get(ctx, in.Post)
 }
 
 func (s *server) GetAllRequest(ctx context.Context, in *helloworldpb.EmptyRequest) (*helloworldpb.GetAllPosts, error) {
-	return &helloworldpb.GetAllPosts{}, nil
+	return s.store.GetAll(ctx)
 }
 
 func (s *server) DeleteRequest(ctx context.Context, in *helloworldpb.DeletePostRequest) (*helloworldpb.Post, error) {
-	return &helloworldpb.Post{}, nil
+	return s.store.Delete(ctx, in.Post)
 }
 
 func main() {
@@ -45,8 +54,15 @@ func main() {
 
 	// Create a gRPC server object
 	s := grpc.NewServer()
+
+	service, err := NewServer()
+	if err != nil {
+		log.Fatal(err.Error())
+		return
+	}
+
 	// Attach the Greeter service to the server
-	helloworldpb.RegisterGreeterServer(s, &server{})
+	helloworldpb.RegisterGreeterServer(s, service)
 	// Serve gRPC server
 	log.Println("Serving gRPC on 0.0.0.0:8080")
 	go func() {
