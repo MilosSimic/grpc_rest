@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	helloworldpb "github.com/milossimic/grpc_rest/proto/helloworld"
 	tracer "github.com/milossimic/grpc_rest/tracer"
+	"os"
 )
 
 const (
@@ -20,7 +21,12 @@ type PostStore struct {
 }
 
 func New() (*PostStore, error) {
-	client, err := api.NewClient(api.DefaultConfig())
+	db := os.Getenv("DB")
+	dbport := os.Getenv("DBPORT")
+
+	config := api.DefaultConfig()
+	config.Address = fmt.Sprintf("%s:%s", db, dbport)
+	client, err := api.NewClient(config)
 	if err != nil {
 		return nil, err
 	}
