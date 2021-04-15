@@ -9,14 +9,44 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	ps "github.com/milossimic/grpc_rest/poststore"
 	helloworldpb "github.com/milossimic/grpc_rest/proto/helloworld"
+	tracer "github.com/milossimic/grpc_rest/tracer"
+	otgo "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	"io"
 )
+
+var grpcGatewayTag = otgo.Tag{Key: string(ext.Component), Value: "grpc-gateway"}
+
+func tracingWrapper(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		parentSpanContext, err := otgo.GlobalTracer().Extract(
+			otgo.HTTPHeaders,
+			otgo.HTTPHeadersCarrier(r.Header))
+		if err == nil || err == otgo.ErrSpanContextNotFound {
+			serverSpan := otgo.GlobalTracer().StartSpan(
+				"ServeHTTP",
+				// this is magical, it attaches the new span to the parent parentSpanContext, and creates an unparented one if empty.
+				ext.RPCServerOption(parentSpanContext),
+				grpcGatewayTag,
+			)
+			r = r.WithContext(otgo.ContextWithSpan(r.Context(), serverSpan))
+			defer serverSpan.Finish()
+		}
+		h.ServeHTTP(w, r)
+	})
+}
 
 type server struct {
 	helloworldpb.UnimplementedGreeterServer
-	store *ps.PostStore
+	store  *ps.PostStore
+	tracer otgo.Tracer
+	closer io.Closer
 }
+
+const name = "post_service"
 
 func NewServer() (*server, error) {
 	store, err := ps.New()
@@ -24,9 +54,21 @@ func NewServer() (*server, error) {
 		return nil, err
 	}
 
+	tracer, closer := tracer.Init(name)
+	otgo.SetGlobalTracer(tracer)
 	return &server{
-		store: store,
+		store:  store,
+		tracer: tracer,
+		closer: closer,
 	}, nil
+}
+
+func (s *server) GetTracer() otgo.Tracer {
+	return s.tracer
+}
+
+func (s *server) GetCloser() io.Closer {
+	return s.closer
 }
 
 func (s *server) PostRequest(ctx context.Context, in *helloworldpb.CreatePostRequest) (*helloworldpb.Post, error) {
@@ -76,6 +118,16 @@ func main() {
 		"0.0.0.0:8080",
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(
+			grpc_opentracing.UnaryClientInterceptor(
+				grpc_opentracing.WithTracer(otgo.GlobalTracer()),
+			),
+		),
+		grpc.WithStreamInterceptor(
+			grpc_opentracing.StreamClientInterceptor(
+				grpc_opentracing.WithTracer(otgo.GlobalTracer()),
+			),
+		),
 	)
 	if err != nil {
 		log.Fatalln("Failed to dial server:", err)
@@ -90,7 +142,7 @@ func main() {
 
 	gwServer := &http.Server{
 		Addr:    ":8090",
-		Handler: gwmux,
+		Handler: tracingWrapper(gwmux),
 	}
 
 	log.Println("Serving gRPC-Gateway on http://0.0.0.0:8090")
