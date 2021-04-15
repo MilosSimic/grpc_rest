@@ -16,7 +16,8 @@ services:
       - "8600:8600/tcp"
       - "8600:8600/udp"
     command: "agent -server -bind 0.0.0.0 -client 0.0.0.0 -bootstrap-expect 1"
-
+    volumes:
+      - ./consul:/consul/data
   app:
     build: .
     restart: always
@@ -34,3 +35,5 @@ services:
       - JAEGER_SAMPLER_PARAM=1
       - DB=consul
       - DBPORT=8500
+volumes:
+  consul:
