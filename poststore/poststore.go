@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/consul/api"
 	helloworldpb "github.com/milossimic/grpc_rest/proto/helloworld"
 	tracer "github.com/milossimic/grpc_rest/tracer"
-	opentracing "github.com/opentracing/opentracing-go"
 )
 
 const (
@@ -32,14 +31,12 @@ func New() (*PostStore, error) {
 }
 
 func (ps *PostStore) Get(ctx context.Context, id string) (*helloworldpb.Post, error) {
-	spanContext := tracer.ExtractSpanContextFromMetadata(opentracing.GlobalTracer(), ctx)
-	span := opentracing.StartSpan(
-		"Get",
-		opentracing.ChildOf(spanContext),
-	)
+	span := tracer.StartSpanFromContextMetadata(ctx, "Get")
 	defer span.Finish()
 
 	kv := ps.cli.KV()
+
+	ctx = tracer.ContextWithSpan(context.Background(), span)
 	pair, _, err := kv.Get(constructKey(ctx, id), nil)
 	if err != nil {
 		return nil, err
@@ -55,11 +52,7 @@ func (ps *PostStore) Get(ctx context.Context, id string) (*helloworldpb.Post, er
 }
 
 func (ps *PostStore) GetAll(ctx context.Context) (*helloworldpb.GetAllPosts, error) {
-	spanContext := tracer.ExtractSpanContextFromMetadata(opentracing.GlobalTracer(), ctx)
-	span := opentracing.StartSpan(
-		"GetAll",
-		opentracing.ChildOf(spanContext),
-	)
+	span := tracer.StartSpanFromContextMetadata(ctx, "GetAll")
 	defer span.Finish()
 
 	kv := ps.cli.KV()
@@ -83,30 +76,13 @@ func (ps *PostStore) GetAll(ctx context.Context) (*helloworldpb.GetAllPosts, err
 	}, nil
 }
 
-func generateKey(ctx context.Context) (string, string) {
-	span, _ := opentracing.StartSpanFromContext(ctx, "generateKey")
-	defer span.Finish()
-
-	id := uuid.New().String()
-	return fmt.Sprintf(posts, id), id
-}
-
-func constructKey(ctx context.Context, id string) string {
-	span, _ := opentracing.StartSpanFromContext(ctx, "constructKey")
-	defer span.Finish()
-
-	return fmt.Sprintf(posts, id)
-}
-
 func (ps PostStore) Post(ctx context.Context, post *helloworldpb.CreatePostRequest) (*helloworldpb.Post, error) {
-	spanContext := tracer.ExtractSpanContextFromMetadata(opentracing.GlobalTracer(), ctx)
-	span := opentracing.StartSpan(
-		"Post",
-		opentracing.ChildOf(spanContext),
-	)
+	span := tracer.StartSpanFromContextMetadata(ctx, "Post")
 	defer span.Finish()
 
 	kv := ps.cli.KV()
+
+	ctx = tracer.ContextWithSpan(context.Background(), span)
 	sid, rid := generateKey(ctx)
 	post.Post.Id = rid
 
@@ -115,7 +91,6 @@ func (ps PostStore) Post(ctx context.Context, post *helloworldpb.CreatePostReque
 		return nil, err
 	}
 
-	ctx = opentracing.ContextWithSpan(context.Background(), span)
 	p := &api.KVPair{Key: sid, Value: data}
 	_, err = kv.Put(p, nil)
 	if err != nil {
@@ -126,20 +101,31 @@ func (ps PostStore) Post(ctx context.Context, post *helloworldpb.CreatePostReque
 }
 
 func (ps *PostStore) Delete(ctx context.Context, id string) (*helloworldpb.Post, error) {
-	spanContext := tracer.ExtractSpanContextFromMetadata(opentracing.GlobalTracer(), ctx)
-	span := opentracing.StartSpan(
-		"Delete",
-		opentracing.ChildOf(spanContext),
-	)
+	span := tracer.StartSpanFromContextMetadata(ctx, "Delete")
 	defer span.Finish()
 
 	kv := ps.cli.KV()
 
-	ctx = opentracing.ContextWithSpan(context.Background(), span)
+	ctx = tracer.ContextWithSpan(context.Background(), span)
 	_, err := kv.Delete(constructKey(ctx, id), nil)
 	if err != nil {
 		return nil, err
 	}
 
 	return nil, nil
+}
+
+func generateKey(ctx context.Context) (string, string) {
+	span := tracer.StartSpanFromContext(ctx, "generateKey")
+	defer span.Finish()
+
+	id := uuid.New().String()
+	return fmt.Sprintf(posts, id), id
+}
+
+func constructKey(ctx context.Context, id string) string {
+	span := tracer.StartSpanFromContext(ctx, "constructKey")
+	defer span.Finish()
+
+	return fmt.Sprintf(posts, id)
 }

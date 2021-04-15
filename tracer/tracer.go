@@ -54,12 +54,6 @@ func Extract(tracer opentracing.Tracer, r *http.Request) (opentracing.SpanContex
 		opentracing.HTTPHeadersCarrier(r.Header))
 }
 
-func ExtractSpanContextFromMetadata(tracer opentracing.Tracer, ctx context.Context) opentracing.SpanContext {
-	md := metautils.ExtractIncoming(ctx)
-	parentSpanContext, _ := tracer.Extract(opentracing.HTTPHeaders, metadataTextMap(md))
-	return parentSpanContext
-}
-
 // StartSpanFromRequest extracts the parent span context from the inbound HTTP request
 // and starts a new child span if there is a parent span.
 func StartSpanFromRequest(spanName string, tracer opentracing.Tracer, r *http.Request) opentracing.Span {
@@ -74,4 +68,20 @@ func StartSpanFromContext(ctx context.Context, spanName string) opentracing.Span
 
 func ContextWithSpan(ctx context.Context, span opentracing.Span) context.Context {
 	return opentracing.ContextWithSpan(ctx, span)
+}
+
+//gRPC related span extraction
+func ExtractSpanContextFromMetadata(tracer opentracing.Tracer, ctx context.Context) opentracing.SpanContext {
+	md := metautils.ExtractIncoming(ctx)
+	parentSpanContext, _ := tracer.Extract(opentracing.HTTPHeaders, metadataTextMap(md))
+	return parentSpanContext
+}
+
+func StartSpanFromContextMetadata(ctx context.Context, name string) opentracing.Span {
+	spanContext := ExtractSpanContextFromMetadata(opentracing.GlobalTracer(), ctx)
+	span := opentracing.StartSpan(
+		name,
+		opentracing.ChildOf(spanContext),
+	)
+	return span
 }
